@@ -6,6 +6,7 @@ import {
   BoltIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
+import dashboardImage from '../../public/dashboard.png';
 
 const features = [
   {
@@ -82,7 +83,7 @@ export default function Home() {
                   </div>
                   <div className="mt-8 flex justify-center">
                     <Image
-                      src="/dashboard.png"
+                      src={dashboardImage}
                       alt="Dashboard Preview"
                       width={600}
                       height={400}
