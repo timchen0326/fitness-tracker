@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PlusIcon, LightBulbIcon, TrashIcon } from '@heroicons/react/24/outline';
 import Modal from '@/components/Modal';
 import AddExerciseForm from '@/components/AddExerciseForm';
@@ -8,6 +8,14 @@ import { Exercise } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { formatDateTime } from '@/lib/utils/date';
+
+interface ExerciseFormData {
+  name: string;
+  type: string;
+  duration: number;
+  calories_burned: number;
+  date: string;
+}
 
 interface RecommendationFormData {
   equipment: string;
@@ -32,18 +40,7 @@ export default function ExerciseTracker() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login');
-      return;
-    }
-
-    if (user) {
-      fetchExercises();
-    }
-  }, [user, authLoading, router]);
-
-  const fetchExercises = async () => {
+  const fetchExercises = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -61,9 +58,20 @@ export default function ExerciseTracker() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const handleAddExercise = async (exerciseData: any) => {
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+      return;
+    }
+
+    if (user) {
+      fetchExercises();
+    }
+  }, [user, authLoading, router, fetchExercises]);
+
+  const handleAddExercise = async (data: ExerciseFormData) => {
     if (!user) return;
 
     setSubmitting(true);
@@ -71,28 +79,17 @@ export default function ExerciseTracker() {
     try {
       const response = await fetch('/api/exercises', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: exerciseData.name,
-          type: exerciseData.type,
-          duration: exerciseData.duration,
-          calories_burned: exerciseData.calories_burned,
-          exercise_time: exerciseData.date,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add exercise');
-      }
-
+      if (!response.ok) throw new Error('Failed to add exercise');
+      
       await fetchExercises();
       setShowAddExercise(false);
     } catch (err) {
       console.error('Error adding exercise:', err);
-      setError(err instanceof Error ? err.message : 'Failed to add exercise');
+      setError('Failed to add exercise');
     } finally {
       setSubmitting(false);
     }

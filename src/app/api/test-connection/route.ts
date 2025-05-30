@@ -1,19 +1,15 @@
-import { supabase } from '@/lib/supabase';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import type { Database } from '@/types/database';
 
 export async function GET() {
   try {
-    const { data, error } = await supabase.from('test').select('*').limit(1);
-    
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
+    const supabase = createRouteHandlerClient<Database>({ cookies });
+    await supabase.from('test').select('count');
     return NextResponse.json({ status: 'Connected to Supabase successfully!' });
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to connect to Supabase' },
-      { status: 500 }
-    );
+  } catch (err) {
+    console.error('Database connection error:', err);
+    return NextResponse.json({ status: 'error' }, { status: 500 });
   }
 } 

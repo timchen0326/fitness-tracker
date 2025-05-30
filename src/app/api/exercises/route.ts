@@ -14,22 +14,16 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: exercises, error } = await supabase
+    const { data } = await supabase
       .from('exercises')
       .select('*')
       .eq('user_id', session.user.id)
       .order('exercise_time', { ascending: false });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json(exercises);
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to fetch exercises' },
-      { status: 500 }
-    );
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error('Error fetching exercises:', err);
+    return NextResponse.json({ message: 'Error fetching exercises' }, { status: 500 });
   }
 }
 
@@ -45,22 +39,16 @@ export async function POST(request: Request) {
     const exercise: ExerciseInsert = await request.json();
     exercise.user_id = session.user.id;
     
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('exercises')
       .insert([exercise])
       .select()
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
     return NextResponse.json(data);
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to create exercise' },
-      { status: 500 }
-    );
+  } catch (err) {
+    console.error('Error creating exercise:', err);
+    return NextResponse.json({ message: 'Error creating exercise' }, { status: 500 });
   }
 }
 
@@ -83,21 +71,15 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const { error } = await supabase
+    const { data } = await supabase
       .from('exercises')
       .delete()
       .eq('id', id)
       .eq('user_id', session.user.id);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to delete exercise' },
-      { status: 500 }
-    );
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error('Error deleting exercise:', err);
+    return NextResponse.json({ message: 'Error deleting exercise' }, { status: 500 });
   }
 } 

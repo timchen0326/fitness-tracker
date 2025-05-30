@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Modal from '@/components/Modal';
 import AddMealForm from '@/components/AddMealForm';
 import { Meal } from '@/types/database';
@@ -8,6 +8,15 @@ import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { formatDateTime } from '@/lib/utils/date';
+
+interface MealFormData {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  time: string;
+}
 
 export default function DietTracker() {
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -18,47 +27,40 @@ export default function DietTracker() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    // Only redirect if we're sure there's no user and we're not still loading
-    if (!authLoading && !user) {
-      router.push('/login');
-      return;
-    }
-
-    // Only fetch meals if we have a user
-    if (user) {
-      fetchMeals();
-    }
-  }, [user, authLoading, router]);
-
-  const fetchMeals = async () => {
+  const fetchMeals = useCallback(async () => {
     if (!user) return;
 
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/meals', {
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
-      });
+      const response = await fetch('/api/meals');
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch meals');
+        throw new Error('Failed to fetch meals');
       }
       
       const data = await response.json();
       setMeals(data);
     } catch (err) {
       console.error('Error fetching meals:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load meals');
+      setError('Failed to load meals');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const addMeal = async (mealData: any) => {
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+      return;
+    }
+
+    if (user) {
+      fetchMeals();
+    }
+  }, [user, authLoading, router, fetchMeals]);
+
+  const handleAddMeal = async (data: MealFormData) => {
     if (!user) return;
     
     setSubmitting(true);
@@ -66,31 +68,17 @@ export default function DietTracker() {
     try {
       const response = await fetch('/api/meals', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: mealData.name,
-          calories: mealData.calories,
-          protein: mealData.protein,
-          carbs: mealData.carbs,
-          fat: mealData.fat,
-          meal_time: mealData.time,
-          user_id: user.id,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add meal');
-      }
-
-      const newMeal = await response.json();
-      setMeals(prevMeals => [newMeal, ...prevMeals]);
+      if (!response.ok) throw new Error('Failed to add meal');
+      
+      await fetchMeals();
       setShowAddMeal(false);
     } catch (err) {
       console.error('Error adding meal:', err);
-      setError(err instanceof Error ? err.message : 'Failed to add meal');
+      setError('Failed to add meal');
     } finally {
       setSubmitting(false);
     }
@@ -208,7 +196,7 @@ export default function DietTracker() {
 
       <Modal open={showAddMeal} setOpen={setShowAddMeal} title="Add Meal">
         <AddMealForm 
-          onSubmit={addMeal} 
+          onSubmit={handleAddMeal} 
           onCancel={() => setShowAddMeal(false)} 
           submitting={submitting}
         />
