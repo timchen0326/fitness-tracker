@@ -4,13 +4,19 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { getCurrentTorontoTime } from '@/lib/utils/date';
+import { getCurrentEasternTime, toEasternTime } from '@/lib/utils/date';
 
 const exerciseSchema = z.object({
   name: z.string().min(1, 'Exercise name is required'),
-  duration: z.number().min(1, 'Duration must be at least 1 minute'),
-  calories_burned: z.number().min(0, 'Calories must be a positive number'),
   type: z.string().min(1, 'Exercise type is required'),
+  exercise_category: z.enum(['cardio', 'strength', 'flexibility', 'sports']),
+  // Optional fields based on category
+  duration: z.number().min(0).optional(),
+  calories_burned: z.number().min(0).optional(),
+  sets: z.number().min(0).optional(),
+  reps: z.number().min(0).optional(),
+  weight: z.number().min(0).optional(),
+  distance: z.number().min(0).optional(),
 });
 
 type ExerciseFormData = z.infer<typeof exerciseSchema>;
@@ -21,58 +27,202 @@ interface AddExerciseFormProps {
   submitting?: boolean;
 }
 
-const exerciseTypes = [
-  'Cardio',
-  'Strength Training',
-  'HIIT',
-  'Yoga',
-  'Pilates',
-  'Swimming',
-  'Cycling',
-  'Running',
-  'Walking',
-  'Other',
-];
+const exerciseTypes = {
+  cardio: ['Running', 'Cycling', 'Swimming', 'Walking', 'Rowing', 'HIIT', 'Other Cardio'],
+  strength: ['Weight Training', 'Bodyweight Exercise', 'Resistance Bands', 'Other Strength'],
+  flexibility: ['Yoga', 'Pilates', 'Stretching', 'Other Flexibility'],
+  sports: ['Basketball', 'Tennis', 'Soccer', 'Other Sports']
+};
 
 export default function AddExerciseForm({ onSubmit, onCancel, submitting = false }: AddExerciseFormProps) {
-  const [date, setDate] = useState(getCurrentTorontoTime());
+  // Initialize with current date-time in EST
+  const [date, setDate] = useState(() => getCurrentEasternTime());
+  
+  const [selectedCategory, setSelectedCategory] = useState<keyof typeof exerciseTypes>('cardio');
   
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<ExerciseFormData>({
     resolver: zodResolver(exerciseSchema),
     defaultValues: {
       name: '',
       type: '',
-      duration: 0,
-      calories_burned: 0
+      exercise_category: 'cardio',
     }
   });
 
+  const exerciseCategory = watch('exercise_category');
+
+  // Update selected category and reset type when category changes
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const category = e.target.value as keyof typeof exerciseTypes;
+    setSelectedCategory(category);
+    setValue('exercise_category', category);
+    setValue('type', ''); // Reset type when category changes
+    // Reset category-specific fields
+    setValue('sets', undefined);
+    setValue('reps', undefined);
+    setValue('weight', undefined);
+    setValue('duration', undefined);
+    setValue('distance', undefined);
+    setValue('calories_burned', undefined);
+  };
+
   const onFormSubmit = (data: ExerciseFormData) => {
-    onSubmit({ ...data, date });
+    // Remove undefined values
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([, v]) => v !== undefined && v !== '')
+    );
+    
+    // Ensure we have a valid date in EST
+    let dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      dateObj = toEasternTime(new Date()); // Fallback to current EST time
+    } else {
+      dateObj = toEasternTime(dateObj); // Convert to EST
+    }
+    
+    // Submit with the ISO string date
+    onSubmit({
+      ...cleanData,
+      date: dateObj.toISOString()
+    } as ExerciseFormData & { date: string });
+  };
+
+  const renderCategorySpecificFields = () => {
+    switch (exerciseCategory) {
+      case 'strength':
+        return (
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="sets" className="block text-sm font-medium text-gray-700">
+                Sets
+              </label>
+              <input
+                type="number"
+                id="sets"
+                {...register('sets', { valueAsNumber: true })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="reps" className="block text-sm font-medium text-gray-700">
+                Reps
+              </label>
+              <input
+                type="number"
+                id="reps"
+                {...register('reps', { valueAsNumber: true })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
+                Weight (kg)
+              </label>
+              <input
+                type="number"
+                id="weight"
+                step="0.1"
+                {...register('weight', { valueAsNumber: true })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+          </div>
+        );
+      case 'cardio':
+        return (
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="duration" className="block text-sm font-medium text-gray-700">
+                Duration (min)
+              </label>
+              <input
+                type="number"
+                id="duration"
+                {...register('duration', { valueAsNumber: true })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="distance" className="block text-sm font-medium text-gray-700">
+                Distance (km)
+              </label>
+              <input
+                type="number"
+                id="distance"
+                step="0.01"
+                {...register('distance', { valueAsNumber: true })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="calories_burned" className="block text-sm font-medium text-gray-700">
+                Calories
+              </label>
+              <input
+                type="number"
+                id="calories_burned"
+                {...register('calories_burned', { valueAsNumber: true })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+          </div>
+        );
+      case 'flexibility':
+      case 'sports':
+        return (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="duration" className="block text-sm font-medium text-gray-700">
+                Duration (min)
+              </label>
+              <input
+                type="number"
+                id="duration"
+                {...register('duration', { valueAsNumber: true })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="calories_burned" className="block text-sm font-medium text-gray-700">
+                Calories
+              </label>
+              <input
+                type="number"
+                id="calories_burned"
+                {...register('calories_burned', { valueAsNumber: true })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
-    <form onSubmit={(e) => {
-      e.preventDefault();
-      handleSubmit(onFormSubmit)(e);
-    }} className="space-y-4">
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-          Exercise Name
+        <label htmlFor="exercise_category" className="block text-sm font-medium text-gray-700">
+          Exercise Category
         </label>
-        <input
-          type="text"
-          id="name"
-          {...register('name')}
+        <select
+          id="exercise_category"
+          {...register('exercise_category')}
+          onChange={handleCategoryChange}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-        />
-        {errors.name && (
-          <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-        )}
+        >
+          <option value="cardio">Cardio</option>
+          <option value="strength">Strength Training</option>
+          <option value="flexibility">Flexibility</option>
+          <option value="sports">Sports</option>
+        </select>
       </div>
 
       <div>
@@ -85,7 +235,7 @@ export default function AddExerciseForm({ onSubmit, onCancel, submitting = false
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         >
           <option value="">Select a type</option>
-          {exerciseTypes.map((type) => (
+          {exerciseTypes[selectedCategory].map((type) => (
             <option key={type} value={type}>
               {type}
             </option>
@@ -93,6 +243,22 @@ export default function AddExerciseForm({ onSubmit, onCancel, submitting = false
         </select>
         {errors.type && (
           <p className="mt-1 text-sm text-red-600">{errors.type.message}</p>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+          Exercise Name
+        </label>
+        <input
+          type="text"
+          id="name"
+          {...register('name')}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          placeholder="e.g., Bench Press, 5K Run"
+        />
+        {errors.name && (
+          <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
         )}
       </div>
 
@@ -109,53 +275,22 @@ export default function AddExerciseForm({ onSubmit, onCancel, submitting = false
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="duration" className="block text-sm font-medium text-gray-700">
-            Duration (minutes)
-          </label>
-          <input
-            type="number"
-            id="duration"
-            {...register('duration', { valueAsNumber: true })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          />
-          {errors.duration && (
-            <p className="mt-1 text-sm text-red-600">{errors.duration.message}</p>
-          )}
-        </div>
+      {renderCategorySpecificFields()}
 
-        <div>
-          <label htmlFor="calories_burned" className="block text-sm font-medium text-gray-700">
-            Calories Burned
-          </label>
-          <input
-            type="number"
-            id="calories_burned"
-            {...register('calories_burned', { valueAsNumber: true })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          />
-          {errors.calories_burned && (
-            <p className="mt-1 text-sm text-red-600">{errors.calories_burned.message}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:col-start-2"
-        >
-          {submitting ? 'Adding...' : 'Add Exercise'}
-        </button>
+      <div className="mt-4 flex justify-end space-x-2">
         <button
           type="button"
           onClick={onCancel}
-          disabled={submitting}
-          className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0"
+          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
           Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+        >
+          {submitting ? 'Saving...' : 'Save Exercise'}
         </button>
       </div>
     </form>

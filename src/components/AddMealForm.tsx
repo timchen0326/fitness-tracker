@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
-import { getCurrentTorontoTime } from '@/lib/utils/date';
+import { getCurrentEasternTime } from '@/lib/utils/date';
 
 const mealSchema = z.object({
   name: z.string().min(1, 'Meal name is required'),
@@ -24,7 +24,7 @@ interface AddMealFormProps {
 }
 
 export default function AddMealForm({ onSubmit, onCancel, submitting = false }: AddMealFormProps) {
-  const [time, setTime] = useState(getCurrentTorontoTime());
+  const [time, setTime] = useState(getCurrentEasternTime());
   const { user } = useAuth();
   
   const {

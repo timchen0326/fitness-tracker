@@ -9,6 +9,36 @@ import { startOfToday, endOfToday, startOfWeek, endOfWeek } from 'date-fns';
 import { formatDateTime } from '@/lib/utils/date';
 import { Exercise, Meal } from '@/types/database';
 
+const ExerciseMetrics = ({ exercise }: { exercise: Exercise }) => {
+  switch (exercise.exercise_category) {
+    case 'strength':
+      return (
+        <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
+          <p>{exercise.sets} sets</p>
+          <p>{exercise.reps} reps</p>
+          {exercise.weight && <p>{exercise.weight} kg</p>}
+          {exercise.duration && <p>{exercise.duration} min</p>}
+          {exercise.calories_burned && <p>{exercise.calories_burned} calories</p>}
+        </div>
+      );
+    case 'cardio':
+      return (
+        <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
+          {exercise.duration && <p>{exercise.duration} min</p>}
+          {exercise.distance && <p>{exercise.distance} km</p>}
+          {exercise.calories_burned && <p>{exercise.calories_burned} calories</p>}
+        </div>
+      );
+    default:
+      return (
+        <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
+          {exercise.duration && <p>{exercise.duration} min</p>}
+          {exercise.calories_burned && <p>{exercise.calories_burned} calories</p>}
+        </div>
+      );
+  }
+};
+
 interface Profile {
   weight: number;
   goal_weight: number;
@@ -276,15 +306,15 @@ export default function Dashboard() {
                         <h4 className="text-sm font-semibold leading-6 text-gray-900">
                           {exercise.name}
                         </h4>
-                        <p className="text-xs text-gray-500">
-                          {formatDateTime(exercise.exercise_time)}
-                        </p>
+                        <p className="text-xs text-gray-500">{exercise.type}</p>
+                        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                          {exercise.exercise_category}
+                        </span>
                       </div>
-                      <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
-                        <p>{exercise.duration} minutes</p>
-                        <p>{exercise.calories_burned} calories</p>
-                        <p>{exercise.type}</p>
-                      </div>
+                      <ExerciseMetrics exercise={exercise} />
+                      <p className="mt-1 text-xs text-gray-500">
+                        {formatDateTime(exercise.exercise_time)}
+                      </p>
                     </li>
                   ))}
                 </ul>

@@ -30,8 +30,13 @@ export interface Exercise {
   user_id: string;
   name: string;
   type: string;
-  duration: number;
-  calories_burned: number;
+  exercise_category: 'cardio' | 'strength' | 'flexibility' | 'sports';
+  duration?: number;
+  calories_burned?: number;
+  sets?: number;
+  reps?: number;
+  weight?: number;
+  distance?: number;
   exercise_time: string;
   created_at: string;
   updated_at: string;
