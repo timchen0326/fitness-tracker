@@ -82,8 +82,8 @@ export default function Home() {
                   </div>
                   <div className="mt-8 flex justify-center">
                     <Image
-                      src="/workout-ai.jpg"
-                      alt="AI Workout Recommendation"
+                      src="/dashboard.png"
+                      alt="Dashboard Preview"
                       width={600}
                       height={400}
                       className="rounded-lg shadow-xl"
