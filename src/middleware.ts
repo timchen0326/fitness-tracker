@@ -1,26 +1,35 @@
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import type { Database } from '@/types/database';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabase = createMiddlewareClient<Database>({ req, res });
+  const supabase = createMiddlewareClient({ req, res });
 
-  try {
-    await supabase.auth.getSession();
-    return res;
-  } catch {
-    return NextResponse.redirect(new URL('/auth/signin', req.url));
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  // If there's no session and the user is trying to access a protected route
+  if (!session && !req.nextUrl.pathname.startsWith('/auth/')) {
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = '/auth/signin';
+    return NextResponse.redirect(redirectUrl);
   }
+
+  return res;
 }
 
-// Specify which routes should be handled by the middleware
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/exercise/:path*',
-    '/diet/:path*',
-    '/profile/:path*',
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     * - auth routes (allow public access)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public|auth).*)',
   ],
 }; 

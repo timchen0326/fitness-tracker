@@ -36,14 +36,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const exercise: ExerciseInsert = await request.json();
-    exercise.user_id = session.user.id;
+    const body = await request.json();
+    const exercise: ExerciseInsert = {
+      user_id: session.user.id,
+      name: body.name,
+      type: body.type,
+      duration: body.duration,
+      calories_burned: body.calories_burned,
+      exercise_time: body.exercise_time
+    };
     
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('exercises')
       .insert([exercise])
       .select()
       .single();
+
+    if (error) {
+      console.error('Database error:', error);
+      return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+
+    if (!data) {
+      return NextResponse.json({ message: 'Failed to create exercise' }, { status: 500 });
+    }
 
     return NextResponse.json(data);
   } catch (err) {

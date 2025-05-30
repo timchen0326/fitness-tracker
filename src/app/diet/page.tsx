@@ -8,6 +8,7 @@ import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { formatDateTime } from '@/lib/utils/date';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface MealFormData {
   name: string;
@@ -26,6 +27,7 @@ export default function DietTracker() {
   const [error, setError] = useState<string | null>(null);
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const supabase = createClientComponentClient();
 
   const fetchMeals = useCallback(async () => {
     if (!user) return;
@@ -33,25 +35,29 @@ export default function DietTracker() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/meals');
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch meals');
+      const { data, error: fetchError } = await supabase
+        .from('meals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('meal_time', { ascending: false });
+
+      if (fetchError) {
+        throw new Error(fetchError.message);
       }
       
-      const data = await response.json();
-      setMeals(data);
+      setMeals(data || []);
     } catch (err) {
       console.error('Error fetching meals:', err);
-      setError('Failed to load meals');
+      setError(err instanceof Error ? err.message : 'Failed to load meals');
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, supabase]);
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/login');
+      router.push('/auth/signin');
       return;
     }
 
@@ -66,19 +72,27 @@ export default function DietTracker() {
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch('/api/meals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
+      const { error: insertError } = await supabase
+        .from('meals')
+        .insert([{
+          user_id: user.id,
+          name: data.name,
+          calories: data.calories,
+          protein: data.protein,
+          carbs: data.carbs,
+          fat: data.fat,
+          meal_time: data.time
+        }]);
 
-      if (!response.ok) throw new Error('Failed to add meal');
+      if (insertError) {
+        throw new Error(insertError.message);
+      }
       
       await fetchMeals();
       setShowAddMeal(false);
     } catch (err) {
       console.error('Error adding meal:', err);
-      setError('Failed to add meal');
+      setError(err instanceof Error ? err.message : 'Failed to add meal');
     } finally {
       setSubmitting(false);
     }
@@ -89,13 +103,14 @@ export default function DietTracker() {
     
     try {
       setError(null);
-      const response = await fetch(`/api/meals?id=${id}`, {
-        method: 'DELETE',
-      });
+      const { error: deleteError } = await supabase
+        .from('meals')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete meal');
+      if (deleteError) {
+        throw new Error(deleteError.message);
       }
 
       setMeals(meals.filter(meal => meal.id !== id));
@@ -120,7 +135,7 @@ export default function DietTracker() {
       <div className="text-center py-12">
         <p className="text-sm text-gray-500">Please sign in to access the diet tracker.</p>
         <button
-          onClick={() => router.push('/login')}
+          onClick={() => router.push('/auth/signin')}
           className="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         >
           Sign In

@@ -43,6 +43,12 @@ export default function AddExerciseForm({ onSubmit, onCancel, submitting = false
     formState: { errors },
   } = useForm<ExerciseFormData>({
     resolver: zodResolver(exerciseSchema),
+    defaultValues: {
+      name: '',
+      type: '',
+      duration: 0,
+      calories_burned: 0
+    }
   });
 
   const onFormSubmit = (data: ExerciseFormData) => {
@@ -50,7 +56,10 @@ export default function AddExerciseForm({ onSubmit, onCancel, submitting = false
   };
 
   return (
-    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      handleSubmit(onFormSubmit)(e);
+    }} className="space-y-4">
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
           Exercise Name

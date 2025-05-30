@@ -9,10 +9,17 @@ import { startOfToday, endOfToday, startOfWeek, endOfWeek } from 'date-fns';
 import { formatDateTime } from '@/lib/utils/date';
 import { Exercise, Meal } from '@/types/database';
 
+interface Profile {
+  weight: number;
+  goal_weight: number;
+  daily_calorie_goal: number;
+}
+
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState([
     { name: 'Daily Calories', value: '0', target: '0', icon: FireIcon },
     { name: 'Current Weight', value: '0 kg', target: '0 kg', icon: ScaleIcon },
@@ -25,96 +32,157 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/login');
+      router.push('/auth/signin');
+      return;
     }
-  }, [user, authLoading, router]);
 
-  useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
-
+      
       try {
+        const today = new Date();
+        const todayStart = startOfToday().toISOString();
+        const todayEnd = endOfToday().toISOString();
+
         // Fetch profile data
-        const { data: profile } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('weight, goal_weight, daily_calorie_goal')
           .eq('id', user.id)
           .single();
 
-        // Fetch today's meals
-        const today = new Date();
-        const { data: todayMeals } = await supabase
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+        } else {
+          setProfile(profileData);
+        }
+
+        // Fetch today's meals with all necessary data
+        const { data: todayMeals, error: mealsError } = await supabase
           .from('meals')
-          .select('calories')
+          .select('*')
           .eq('user_id', user.id)
-          .gte('meal_time', startOfToday().toISOString())
-          .lte('meal_time', endOfToday().toISOString());
+          .gte('meal_time', todayStart)
+          .lte('meal_time', todayEnd);
+
+        if (mealsError) {
+          console.error('Error fetching meals:', mealsError);
+          throw new Error('Failed to fetch meals');
+        }
+
+        console.log('Today start:', todayStart);
+        console.log('Today end:', todayEnd);
+        console.log('Raw meals data:', todayMeals);
 
         // Calculate total calories for today
-        const totalCalories = todayMeals?.reduce((sum, meal) => sum + meal.calories, 0) || 0;
+        const totalCalories = todayMeals?.reduce((sum, meal) => {
+          console.log('Processing meal:', {
+            id: meal.id,
+            name: meal.name,
+            calories: meal.calories,
+            mealTime: meal.meal_time
+          });
+          return sum + (meal.calories || 0);
+        }, 0) || 0;
+
+        console.log('Final total calories:', totalCalories);
 
         // Fetch exercises for the current week
-        const { data: weekExercises } = await supabase
+        const { data: weekExercises, error: exercisesError } = await supabase
           .from('exercises')
           .select('exercise_time')
           .eq('user_id', user.id)
           .gte('exercise_time', startOfWeek(today).toISOString())
           .lte('exercise_time', endOfWeek(today).toISOString());
 
-        // Calculate active days (unique days with exercises)
+        if (exercisesError) {
+          console.error('Error fetching exercises:', exercisesError);
+          throw new Error('Failed to fetch exercises');
+        }
+
+        // Calculate active days
         const activeDays = new Set(
           weekExercises?.map(ex => new Date(ex.exercise_time).toDateString())
         ).size;
 
-        // Fetch recent meals
-        const { data: meals } = await supabase
-          .from('meals')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        // Fetch recent exercises
-        const { data: exercises } = await supabase
-          .from('exercises')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        // Update stats
+        // Update stats with actual profile data and calculated calories
         setStats([
-          {
-            name: 'Daily Calories',
-            value: totalCalories.toString(),
-            target: profile?.daily_calorie_goal?.toString() || '2,300',
-            icon: FireIcon
+          { 
+            name: 'Daily Calories', 
+            value: totalCalories.toString(), 
+            target: profileData?.daily_calorie_goal?.toString() || '2000', 
+            icon: FireIcon 
           },
-          {
-            name: 'Current Weight',
-            value: profile?.weight ? `${profile.weight} kg` : 'Not set',
-            target: profile?.goal_weight ? `${profile.goal_weight} kg` : 'Not set',
-            icon: ScaleIcon
+          { 
+            name: 'Current Weight', 
+            value: profileData?.weight ? `${profileData.weight} kg` : 'Not set', 
+            target: profileData?.goal_weight ? `${profileData.goal_weight} kg` : 'Not set', 
+            icon: ScaleIcon 
           },
-          {
-            name: 'Active Days',
-            value: `${activeDays}/7`,
-            target: '7/7',
-            icon: CalendarDaysIcon
+          { 
+            name: 'Active Days', 
+            value: `${activeDays}/7`, 
+            target: '7/7', 
+            icon: CalendarDaysIcon 
           },
         ]);
 
-        if (meals) setRecentMeals(meals);
-        if (exercises) setRecentExercises(exercises);
+        // Fetch recent data
+        const [{ data: meals, error: recentMealsError }, { data: exercises, error: recentExercisesError }] = await Promise.all([
+          supabase
+            .from('meals')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(5),
+          supabase
+            .from('exercises')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(5)
+        ]);
+
+        if (recentMealsError) throw new Error('Failed to fetch recent meals');
+        if (recentExercisesError) throw new Error('Failed to fetch recent exercises');
+
+        setRecentMeals(meals || []);
+        setRecentExercises(exercises || []);
       } catch (err) {
-        console.error('Error fetching data:', err);
+        console.error('Error fetching dashboard data:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [supabase, user]);
+    if (user) {
+      fetchData();
+    }
+  }, [user, authLoading, router, supabase]);
 
-  if (authLoading || loading) {
+  // Use profile in a useEffect to update stats when it changes
+  useEffect(() => {
+    if (profile) {
+      setStats(currentStats => currentStats.map(stat => {
+        if (stat.name === 'Current Weight') {
+          return {
+            ...stat,
+            value: profile.weight ? `${profile.weight} kg` : 'Not set',
+            target: profile.goal_weight ? `${profile.goal_weight} kg` : 'Not set'
+          };
+        }
+        if (stat.name === 'Daily Calories') {
+          return {
+            ...stat,
+            target: profile.daily_calorie_goal?.toString() || '2000'
+          };
+        }
+        return stat;
+      }));
+    }
+  }, [profile]);
+
+  if (authLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -123,100 +191,106 @@ export default function Dashboard() {
   }
 
   if (!user) {
-    return null; // Don't render anything while redirecting
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-gray-500">Please sign in to view your dashboard.</p>
+        <button
+          onClick={() => router.push('/auth/signin')}
+          className="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        >
+          Sign In
+        </button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
-      
-      <div className="space-y-6">
-        <div className="border-b border-gray-200 pb-5">
-          <h2 className="text-2xl font-semibold leading-6 text-gray-900">Dashboard</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Welcome back! Here&apos;s an overview of your fitness journey.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {stats.map((stat) => (
-            <div
-              key={stat.name}
-              className="relative overflow-hidden rounded-lg bg-white px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6"
-            >
-              <dt>
-                <div className="absolute rounded-md bg-indigo-500 p-3">
-                  <stat.icon className="h-6 w-6 text-white" aria-hidden="true" />
-                </div>
-                <p className="ml-16 truncate text-sm font-medium text-gray-500">{stat.name}</p>
-              </dt>
-              <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
-                <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-                <p className="ml-2 text-sm text-gray-500">/ {stat.target}</p>
-              </dd>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {stats.map((item) => (
+          <div key={item.name} className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
             <div className="p-6">
-              <h3 className="text-lg font-medium leading-6 text-gray-900">Recent Meals</h3>
-              <div className="mt-4">
-                {recentMeals.length > 0 ? (
-                  <ul className="divide-y divide-gray-100">
-                    {recentMeals.map((meal) => (
-                      <li key={meal.id} className="py-4">
-                        <div className="flex items-center gap-x-3">
-                          <h4 className="text-sm font-semibold leading-6 text-gray-900">
-                            {meal.name}
-                          </h4>
-                          <p className="text-xs text-gray-500">{formatDateTime(meal.meal_time)}</p>
-                        </div>
-                        <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
-                          <p>Calories: {meal.calories}</p>
-                          <p>Protein: {meal.protein}g</p>
-                          <p>Carbs: {meal.carbs}g</p>
-                          <p>Fat: {meal.fat}g</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500">No meals logged yet</p>
-                )}
+              <div className="flex items-center gap-x-3">
+                <item.icon className="h-6 w-6 text-gray-400" />
+                <h3 className="text-sm font-medium leading-6 text-gray-900">{item.name}</h3>
+              </div>
+              <div className="mt-3 flex items-baseline gap-x-2">
+                <p className="text-2xl font-semibold tracking-tight text-indigo-600">{item.value}</p>
+                <p className="text-sm text-gray-500">/ {item.target}</p>
               </div>
             </div>
           </div>
+        ))}
+      </div>
 
-          <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-            <div className="p-6">
-              <h3 className="text-lg font-medium leading-6 text-gray-900">Recent Exercises</h3>
-              <div className="mt-4">
-                {recentExercises.length > 0 ? (
-                  <ul className="divide-y divide-gray-100">
-                    {recentExercises.map((exercise) => (
-                      <li key={exercise.id} className="py-4">
-                        <div className="flex items-center gap-x-3">
-                          <h4 className="text-sm font-semibold leading-6 text-gray-900">
-                            {exercise.name}
-                          </h4>
-                          <p className="text-xs text-gray-500">
-                            {formatDateTime(exercise.exercise_time)}
-                          </p>
-                        </div>
-                        <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
-                          <p>{exercise.duration} minutes</p>
-                          <p>{exercise.calories_burned} calories</p>
-                          <p>{exercise.type}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500">No exercises logged yet</p>
-                )}
-              </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+          <div className="p-6">
+            <h3 className="text-lg font-medium leading-6 text-gray-900">Recent Meals</h3>
+            <div className="mt-4">
+              {recentMeals.length > 0 ? (
+                <ul className="divide-y divide-gray-100">
+                  {recentMeals.map((meal) => (
+                    <li key={meal.id} className="py-4">
+                      <div className="flex items-center gap-x-3">
+                        <h4 className="text-sm font-semibold leading-6 text-gray-900">
+                          {meal.name}
+                        </h4>
+                        <p className="text-xs text-gray-500">
+                          {formatDateTime(meal.meal_time)}
+                        </p>
+                      </div>
+                      <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
+                        <p>{meal.calories} calories</p>
+                        <p>{meal.protein}g protein</p>
+                        <p>{meal.carbs}g carbs</p>
+                        <p>{meal.fat}g fat</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500">No meals logged yet</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+          <div className="p-6">
+            <h3 className="text-lg font-medium leading-6 text-gray-900">Recent Exercises</h3>
+            <div className="mt-4">
+              {recentExercises.length > 0 ? (
+                <ul className="divide-y divide-gray-100">
+                  {recentExercises.map((exercise) => (
+                    <li key={exercise.id} className="py-4">
+                      <div className="flex items-center gap-x-3">
+                        <h4 className="text-sm font-semibold leading-6 text-gray-900">
+                          {exercise.name}
+                        </h4>
+                        <p className="text-xs text-gray-500">
+                          {formatDateTime(exercise.exercise_time)}
+                        </p>
+                      </div>
+                      <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
+                        <p>{exercise.duration} minutes</p>
+                        <p>{exercise.calories_burned} calories</p>
+                        <p>{exercise.type}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500">No exercises logged yet</p>
+              )}
             </div>
           </div>
         </div>

@@ -47,13 +47,16 @@ export default function ExerciseTracker() {
       setLoading(true);
       setError(null);
       const response = await fetch('/api/exercises');
-      if (!response.ok) {
-        throw new Error('Failed to fetch exercises');
-      }
       const data = await response.json();
-      setExercises(data);
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch exercises');
+      }
+      
+      setExercises(data || []);
     } catch (err) {
-      setError('Failed to load exercises');
+      const message = err instanceof Error ? err.message : 'Failed to load exercises';
+      setError(message);
       console.error('Error fetching exercises:', err);
     } finally {
       setLoading(false);
@@ -80,16 +83,26 @@ export default function ExerciseTracker() {
       const response = await fetch('/api/exercises', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          name: data.name,
+          type: data.type,
+          duration: data.duration,
+          calories_burned: data.calories_burned,
+          exercise_time: data.date
+        }),
       });
 
-      if (!response.ok) throw new Error('Failed to add exercise');
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to add exercise');
+      }
       
       await fetchExercises();
       setShowAddExercise(false);
     } catch (err) {
       console.error('Error adding exercise:', err);
-      setError('Failed to add exercise');
+      setError(err instanceof Error ? err.message : 'Failed to add exercise');
     } finally {
       setSubmitting(false);
     }

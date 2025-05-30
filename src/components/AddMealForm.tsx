@@ -50,7 +50,10 @@ export default function AddMealForm({ onSubmit, onCancel, submitting = false }: 
   };
 
   return (
-    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      handleSubmit(onFormSubmit)(e);
+    }} className="space-y-4">
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
           Meal Name

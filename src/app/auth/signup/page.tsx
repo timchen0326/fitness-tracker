@@ -9,14 +9,14 @@ export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError(null);
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -34,8 +34,8 @@ export default function SignUp() {
       await signUp(email, password);
       router.push('/auth/verify-email');
     } catch (err) {
-      setError('Failed to create an account. Please try again.');
       console.error('Sign up error:', err);
+      setError('Failed to create an account. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -109,9 +109,7 @@ export default function SignUp() {
           </div>
 
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
+            <div className="text-red-600 text-sm text-center">{error}</div>
           )}
 
           <div>
@@ -128,7 +126,7 @@ export default function SignUp() {
         <p className="mt-10 text-center text-sm text-gray-500">
           Already have an account?{' '}
           <Link
-            href="/auth/signin"
+            href="/login"
             className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
           >
             Sign in

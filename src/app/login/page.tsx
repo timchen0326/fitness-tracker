@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -19,7 +20,7 @@ export default function LoginPage() {
 
     try {
       await signIn(email, password);
-      router.push('/diet');
+      router.push('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
       setError('Failed to sign in. Please check your credentials.');
@@ -90,6 +91,16 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
+
+        <p className="mt-10 text-center text-sm text-gray-500">
+          Don&apos;t have an account?{' '}
+          <Link
+            href="/auth/signup"
+            className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
+          >
+            Sign up now
+          </Link>
+        </p>
       </div>
     </div>
   );
