@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   ChartBarIcon,
@@ -40,47 +41,57 @@ const features = [
 export default function Home() {
   return (
     <div className="bg-white">
-      <div className="relative isolate overflow-hidden">
-        <div className="mx-auto max-w-7xl px-6 pb-24 pt-10 sm:pb-32 lg:flex lg:px-8 lg:py-40">
-          <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-xl lg:flex-shrink-0 lg:pt-8">
-            <div className="mt-24 sm:mt-32 lg:mt-16">
-              <div className="inline-flex space-x-6">
-                <span className="rounded-full bg-indigo-600/10 px-3 py-1 text-sm font-semibold leading-6 text-indigo-600 ring-1 ring-inset ring-indigo-600/10">
-                  Latest Update
-                </span>
-                <span className="inline-flex items-center space-x-2 text-sm font-medium leading-6 text-gray-600">
-                  <span>AI-Powered Workouts</span>
-                </span>
-              </div>
-            </div>
-            <h1 className="mt-10 text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-              Your Personal Fitness Journey Starts Here
+      <div className="relative isolate px-6 pt-14 lg:px-8">
+        <div className="mx-auto max-w-2xl py-32 sm:py-48 lg:py-56">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
+              Track your fitness journey with AI-powered insights
             </h1>
             <p className="mt-6 text-lg leading-8 text-gray-600">
-              Track your diet, get smart exercise recommendations, and achieve your fitness goals with
-              our comprehensive fitness platform.
+              Get personalized workout recommendations, track your meals, and achieve your fitness goals with our comprehensive fitness tracking platform.
             </p>
-            <div className="mt-10 flex items-center gap-x-6">
+            <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link
-                href="/dashboard"
+                href="/auth/signin"
                 className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               >
-                Get Started
+                Get started
               </Link>
               <Link href="/about" className="text-sm font-semibold leading-6 text-gray-900">
                 Learn more <span aria-hidden="true">→</span>
               </Link>
             </div>
           </div>
-          <div className="mx-auto mt-16 flex max-w-2xl sm:mt-24 lg:ml-10 lg:mr-0 lg:mt-0 lg:max-w-none lg:flex-none xl:ml-32">
-            <div className="max-w-3xl flex-none sm:max-w-5xl lg:max-w-none">
-              <img
-                src="/dashboard-preview.png"
-                alt="App screenshot"
-                width={2432}
-                height={1442}
-                className="w-[76rem] rounded-md bg-white/5 shadow-2xl ring-1 ring-white/10"
-              />
+        </div>
+      </div>
+
+      <div className="relative">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl lg:max-w-4xl">
+            <div className="mt-16 sm:mt-20 lg:mt-24">
+              <div className="relative overflow-hidden rounded-xl bg-gray-900 px-6 py-8 shadow-2xl sm:px-12 sm:py-16 md:px-16">
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80"></div>
+                <div className="relative">
+                  <div className="text-center">
+                    <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                      AI-Powered Workout Recommendations
+                    </h2>
+                    <p className="mt-6 text-lg leading-8 text-gray-300">
+                      Get personalized workout plans based on your equipment, fitness level, and goals.
+                    </p>
+                  </div>
+                  <div className="mt-8 flex justify-center">
+                    <Image
+                      src="/workout-ai.jpg"
+                      alt="AI Workout Recommendation"
+                      width={600}
+                      height={400}
+                      className="rounded-lg shadow-xl"
+                      priority
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

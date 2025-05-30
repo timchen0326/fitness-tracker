@@ -21,7 +21,6 @@ export default function Dashboard() {
 
   const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
   const [recentMeals, setRecentMeals] = useState<Meal[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const supabase = createClientComponentClient();
 
   useEffect(() => {
@@ -105,8 +104,8 @@ export default function Dashboard() {
 
         if (meals) setRecentMeals(meals);
         if (exercises) setRecentExercises(exercises);
-      } catch (error) {
-        console.error('Error fetching data:', error);
+      } catch (err) {
+        console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
       }
@@ -135,7 +134,7 @@ export default function Dashboard() {
         <div className="border-b border-gray-200 pb-5">
           <h2 className="text-2xl font-semibold leading-6 text-gray-900">Dashboard</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Welcome back! Here's an overview of your fitness journey.
+            Welcome back! Here&apos;s an overview of your fitness journey.
           </p>
         </div>
 
