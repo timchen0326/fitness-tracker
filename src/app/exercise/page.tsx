@@ -12,8 +12,13 @@ import { formatDateTime } from '@/lib/utils/date';
 interface ExerciseFormData {
   name: string;
   type: string;
-  duration: number;
-  calories_burned: number;
+  exercise_category: 'cardio' | 'strength' | 'flexibility' | 'sports';
+  duration?: number;
+  calories_burned?: number;
+  sets?: number;
+  reps?: number;
+  weight?: number;
+  distance?: number;
   date: string;
 }
 
@@ -22,6 +27,36 @@ interface RecommendationFormData {
   fitnessLevel: 'beginner' | 'intermediate' | 'advanced';
   goals: string;
 }
+
+const ExerciseMetrics = ({ exercise }: { exercise: Exercise }) => {
+  switch (exercise.exercise_category) {
+    case 'strength':
+      return (
+        <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
+          <p>{exercise.sets} sets</p>
+          <p>{exercise.reps} reps</p>
+          {exercise.weight && <p>{exercise.weight} kg</p>}
+          {exercise.duration && <p>{exercise.duration} min</p>}
+          {exercise.calories_burned && <p>{exercise.calories_burned} calories</p>}
+        </div>
+      );
+    case 'cardio':
+      return (
+        <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
+          {exercise.duration && <p>{exercise.duration} min</p>}
+          {exercise.distance && <p>{exercise.distance} km</p>}
+          {exercise.calories_burned && <p>{exercise.calories_burned} calories</p>}
+        </div>
+      );
+    default:
+      return (
+        <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
+          {exercise.duration && <p>{exercise.duration} min</p>}
+          {exercise.calories_burned && <p>{exercise.calories_burned} calories</p>}
+        </div>
+      );
+  }
+};
 
 export default function ExerciseTracker() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -80,15 +115,28 @@ export default function ExerciseTracker() {
     setSubmitting(true);
     setError(null);
     try {
+      // Always ensure we have a valid date
+      const date = data.date ? new Date(data.date).toISOString() : new Date().toISOString();
+
+      // Validate the date before sending
+      if (!date) {
+        throw new Error('Invalid exercise date');
+      }
+
       const response = await fetch('/api/exercises', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: data.name,
           type: data.type,
-          duration: data.duration,
-          calories_burned: data.calories_burned,
-          exercise_time: data.date
+          exercise_category: data.exercise_category,
+          duration: data.duration || null,
+          calories_burned: data.calories_burned || null,
+          sets: data.sets || null,
+          reps: data.reps || null,
+          weight: data.weight || null,
+          distance: data.distance || null,
+          date // Send as 'date' to match API expectation
         }),
       });
 
@@ -330,12 +378,14 @@ export default function ExerciseTracker() {
                             {exercise.name}
                           </h4>
                           <p className="text-xs text-gray-500">{exercise.type}</p>
+                          <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                            {exercise.exercise_category}
+                          </span>
                         </div>
-                        <div className="mt-1 flex items-center gap-x-2 text-xs leading-5 text-gray-500">
-                          <p>{exercise.duration} minutes</p>
-                          <p>{exercise.calories_burned} calories</p>
-                          <p>{formatDateTime(exercise.exercise_time)}</p>
-                        </div>
+                        <ExerciseMetrics exercise={exercise} />
+                        <p className="mt-1 text-xs text-gray-500">
+                          {formatDateTime(exercise.exercise_time)}
+                        </p>
                       </div>
                       <button
                         onClick={() => deleteExercise(exercise.id)}

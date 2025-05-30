@@ -7,7 +7,8 @@ type ExerciseInsert = Database['public']['Tables']['exercises']['Insert'];
 
 export async function GET() {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore });
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -29,7 +30,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore });
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -41,9 +43,15 @@ export async function POST(request: Request) {
       user_id: session.user.id,
       name: body.name,
       type: body.type,
-      duration: body.duration,
-      calories_burned: body.calories_burned,
-      exercise_time: body.exercise_time
+      exercise_category: body.exercise_category,
+      exercise_time: body.date,
+      // Optional fields based on category
+      duration: body.duration || null,
+      calories_burned: body.calories_burned || null,
+      sets: body.sets || null,
+      reps: body.reps || null,
+      weight: body.weight || null,
+      distance: body.distance || null
     };
     
     const { data, error } = await supabase
@@ -70,7 +78,8 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore });
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -87,13 +96,17 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const { data } = await supabase
+    const { error } = await supabase
       .from('exercises')
       .delete()
       .eq('id', id)
       .eq('user_id', session.user.id);
 
-    return NextResponse.json(data);
+    if (error) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Error deleting exercise:', err);
     return NextResponse.json({ message: 'Error deleting exercise' }, { status: 500 });

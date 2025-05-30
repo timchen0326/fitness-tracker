@@ -1,30 +1,30 @@
-export function toTorontoTime(date: Date): Date {
+export function toEasternTime(date: Date): Date {
   return new Date(date.toLocaleString('en-US', {
-    timeZone: 'America/Toronto'
+    timeZone: 'America/New_York'
   }));
 }
 
 export function formatDateTime(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleString('en-US', {
-    timeZone: 'America/Toronto',
+    timeZone: 'America/New_York',
     dateStyle: 'medium',
     timeStyle: 'short'
   });
 }
 
-export function getCurrentTorontoTime(): string {
+export function getCurrentEasternTime(): string {
   const now = new Date();
-  const torontoDate = new Date(now.toLocaleString('en-US', {
-    timeZone: 'America/Toronto'
+  const easternDate = new Date(now.toLocaleString('en-US', {
+    timeZone: 'America/New_York'
   }));
   
   // Format for datetime-local input (YYYY-MM-DDThh:mm)
-  const year = torontoDate.getFullYear();
-  const month = String(torontoDate.getMonth() + 1).padStart(2, '0');
-  const day = String(torontoDate.getDate()).padStart(2, '0');
-  const hours = String(torontoDate.getHours()).padStart(2, '0');
-  const minutes = String(torontoDate.getMinutes()).padStart(2, '0');
+  const year = easternDate.getFullYear();
+  const month = String(easternDate.getMonth() + 1).padStart(2, '0');
+  const day = String(easternDate.getDate()).padStart(2, '0');
+  const hours = String(easternDate.getHours()).padStart(2, '0');
+  const minutes = String(easternDate.getMinutes()).padStart(2, '0');
   
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 } 
